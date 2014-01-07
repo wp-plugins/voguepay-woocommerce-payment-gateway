@@ -1,7 +1,7 @@
 === Voguepay Woocommerce Payment Gateway ===
 Contributors: tubiz
 Donate link: http://bosun.me/donate
-Tags: woocommerce, payment gateway, payment gateways, voguepay, interswitch, verve cards, tubiz plugins, verve, nigeria, voguepay woocommerce payment gateway
+Tags: woocommerce, payment gateway, payment gateways, voguepay, interswitch, verve cards, tubiz plugins, tunbosun ayinla, verve, nigeria, voguepay woocommerce payment gateway
 Requires at least: 3.5
 Tested up to: 3.8
 Stable tag: 1.0.0
