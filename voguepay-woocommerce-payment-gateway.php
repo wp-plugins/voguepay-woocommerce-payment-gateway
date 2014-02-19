@@ -3,7 +3,7 @@
 	Plugin Name: Voguepay WooCommerce Payment Gateway
 	Plugin URI: http://bosun.me/voguepay-woocommerce-payment-gateway
 	Description: Voguepay Woocommerce Payment Gateway allows you to accept payment on your Woocommerce store via Visa Cards, Mastercards, Verve Cards and eTranzact.
-	Version: 1.1.0
+	Version: 1.2.0
 	Author: Tunbosun Ayinla
 	Author URI: http://bosun.me/
 	License:           GPL-2.0+
@@ -31,7 +31,7 @@ function woocommerce_voguepay_init() {
 			$this->id 					= 'tbz_voguepay_gateway';
     		$this->icon 				= apply_filters('woocommerce_vogueway_icon', plugins_url( 'assets/pay-via-voguepay.png' , __FILE__ ) );
 			$this->has_fields 			= false;
-        	$this->liveurl 				= 'https://voguepay.com/?p=linkToken'; 
+        	$this->liveurl 				= 'https://voguepay.com/?p=linkToken';
         	$this->method_title     	= 'VoguePay Payment Gateway';
         	$this->method_description  	= 'VoguePay Payment Gateway allows you to receive Mastercard, Verve Card and Visa Card Payments On your Woocommerce Powered Site.';
 
@@ -71,9 +71,7 @@ function woocommerce_voguepay_init() {
 	    /**
 	     * Initialise Gateway Settings Form Fields
 	    **/
-
 		function init_form_fields(){
-
 			$this->form_fields = array(
 			'enabled' => array(
 							'title' 			=> 	'Enable/Disable',
@@ -89,22 +87,21 @@ function woocommerce_voguepay_init() {
 								'description' 	=> 	'This controls the title which the user sees during checkout.',
                     			'desc_tip'      => 	false,
 								'default' 		=>  'VoguePay Payment Gateway'
-							), 
+							),
 				'description' => array(
 								'title' 		=> 	'Description',
 								'type' 			=> 	'textarea',
 								'description' 	=> 	'This controls the description which the user sees during checkout.',
 								'default' 		=> 	'Pay Via Voguepay: Accepts Interswitch, Mastercard, Verve cards, eTranzact and Visa cards.'
-							), 
-							
+							),
 				'voguePayMerchantId' => array(
 								'title' 		=> 	'VoguePay Merchant ID',
 								'type' 			=> 	'text',
 								'description' 	=> 'Enter Your VoguePay Merchant ID, this can be gotten on your account page when you login on VoguePay' ,
 								'default' 		=> '',
                     			'desc_tip'      => true
-							)			
-			);			
+							)
+			);
 		}
 
 
@@ -145,9 +142,9 @@ function woocommerce_voguepay_init() {
 			global $woocommerce;
 
 			$order = new WC_Order( $order_id );
-			
+
 			$voguepay_adr = $this->liveurl . '?';
-			
+
 			$voguepay_args = $this->get_voguepay_args( $order );
 
 			$voguepay_args_array = array();
@@ -171,10 +168,9 @@ function woocommerce_voguepay_init() {
 
 			$order = new WC_Order( $order_id );
 	        return array(
-	        	'result' => 'success', 
-	        	'redirect' => add_query_arg('order', $order->id, add_query_arg('key', $order->order_key, $order->get_checkout_payment_url( true )))
+	        	'result' => 'success',
+				'redirect'	=> $order->get_checkout_payment_url( true )
 	        );
-
 		}
 
 
@@ -197,25 +193,26 @@ function woocommerce_voguepay_init() {
 			{
 				$transaction_id = $_POST['transaction_id'];
 				$json = wp_remote_get( 'https://voguepay.com/?v_transaction_id='.$transaction_id.'&type=json');
+
 				$transaction = json_decode($json['body'], true);
+				$transaction_id = $transaction['transaction_id'];
+				$order_id 		= $transaction['merchant_ref'];
+				$order_id 		= (int) $order_id;
+
+		        $order 			= new WC_Order($order_id);
+		        $order_total	= $order->get_total();
+
+				$amount_paid 	= $transaction['total'];
 
 				if($transaction['status'] == 'Approved')
 				{					
-					$transaction_id = $transaction['transaction_id'];
-					$order_id 		= $transaction['merchant_ref'];
-					$order_id 		= (int) $order_id;
-
-		            $order 			= new WC_Order($order_id);
-		            $order_total	= $order->get_total();
-
-					$amount_paid 	= $transaction['total'];
 
 					// check if the amount paid is equal to the order amount.
 					if($order_total != $amount_paid)
 					{
 			            //after payment hook
-		                do_action('tbz_voguepay_after_payment', $transaction); 
-							
+		                do_action('tbz_voguepay_after_payment', $transaction);
+
 		                //Update the order status
 						$order->update_status('on-hold', '');
 
@@ -224,10 +221,10 @@ function woocommerce_voguepay_init() {
 
 						//Add Customer Order Note
 	                    $order->add_order_note($message.'<br />Voguepay Transaction ID: '.$transaction_id, 1);
-	                    
+
 	                    //Add Admin Order Note
 	                    $order->add_order_note('This order is currently on hold.<br />Reason: Amount paid is less than the total order amount.<br />Amount Paid was: &#8358; '.$amount.' while the total order amount is: &#8358; '.$posted_amount.'<br />Voguepay Transaction ID: '.$transaction_id);
-							
+
 						// Reduce stock levels
 						$order->reduce_order_stock();
 
@@ -245,14 +242,14 @@ function woocommerce_voguepay_init() {
 					else
 					{
 		                //after payment hook
-		                do_action('tbz_voguepay_after_payment', $transaction); 
+		                do_action('tbz_voguepay_after_payment', $transaction);
 
 		                if($order->status == 'processing'){
 		                    $order->add_order_note('Payment Via Voguepay<br />Transaction ID: '.$transaction_id);
 
 		                    //Add customer order note
 		 					$order->add_order_note('Payment Received.<br />Your order is currently being processed.<br />We will be shipping your order to you soon.<br />Voguepay Transaction ID: '.$transaction_id, 1);
-							
+
 							// Reduce stock levels
 							$order->reduce_order_stock();
 
@@ -276,7 +273,7 @@ function woocommerce_voguepay_init() {
 
 		                    //Add customer order note
 		 					$order->add_order_note('Payment Received.<br />Your order is currently being processed.<br />We will be shipping your order to you soon.<br />Voguepay Transaction ID: '.$transaction_id, 1);
-		 					
+
 							// Reduce stock levels
 							$order->reduce_order_stock();
 
@@ -292,44 +289,44 @@ function woocommerce_voguepay_init() {
 								$woocommerce->add_message( $message );
 								$woocommerce->set_messages();
 							}
-		                }	
-	                }			
+		                }
+	                }
 				}
 
 	            else
-	            {            
+	            {
 	            	$message = 	'Thank you for shopping with us. <br />However, the transaction wasn\'t successful, payment wasn\'t recieved.';
 					$transaction_id = $transaction['transaction_id'];
 
 					//Add Customer Order Note
                     $order->add_order_note($message.'<br />Voguepay Transaction ID: '.$transaction_id, 1);
-                    
+
                     //Add Admin Order Note
                     $order->add_order_note($message.'<br />Voguepay Transaction ID: '.$transaction_id);
 
-					if ( function_exists( 'wc_add_notice' ) ) 
+					if ( function_exists( 'wc_add_notice' ) )
 					{
 						wc_add_notice( $message, 'error' );
 
-					} 
+					}
 					else // WC < 2.1
-					{ 
+					{
 						$woocommerce->add_error( $message );
 						$woocommerce->set_messages();
 					}
-	            }   
-			}   
+	            }
+			}
 			else
 			{
             	$message = 	'Thank you for shopping with us. <br />However, the transaction wasn\'t successful, payment wasn\'t recieved.';
 
-				if ( function_exists( 'wc_add_notice' ) ) 
+				if ( function_exists( 'wc_add_notice' ) )
 				{
 					wc_add_notice( $message, 'error' );
 
-				} 
+				}
 				else // WC < 2.1
-				{ 
+				{
 					$woocommerce->add_error( $message );
 					$woocommerce->set_messages();
 				}
@@ -348,10 +345,10 @@ function woocommerce_voguepay_init() {
 		$methods[] = 'WC_Tbz_Voguepay_Gateway';
 		return $methods;
 	}
-	
+
 	add_filter('woocommerce_payment_gateways', 'woocommerce_add_voguepay_gateway' );
 
-	
+
 	/**
 	 * only add the naira currency and symbol if WC versions is less than 2.1
 	 */
@@ -359,7 +356,7 @@ function woocommerce_voguepay_init() {
 
 		/**
 		* Add NGN as a currency in WC
-		**/ 
+		**/
 		add_filter( 'woocommerce_currencies', 'tbz_add_my_currency' );
 
 		if( ! function_exists( 'tbz_add_my_currency' )){
@@ -368,13 +365,12 @@ function woocommerce_voguepay_init() {
 			     return $currencies;
 			}
 		}
-				 
+
 		/**
 		* Enable the naira currency symbol in WC
-		**/ 
+		**/
+		add_filter('woocommerce_currency_symbol', 'tbz_add_my_currency_symbol', 10, 2);
 
-		add_filter('woocommerce_currency_symbol', 'tbz_add_my_currency_symbol', 10, 2);	 
-		
 		if( ! function_exists( 'tbz_add_my_currency_symbol' ) ){
 			function tbz_add_my_currency_symbol( $currency_symbol, $currency ) {
 			     switch( $currency ) {
@@ -383,25 +379,48 @@ function woocommerce_voguepay_init() {
 			     return $currency_symbol;
 			}
 		}
-	} 
+	}
 
 
 	/**
-	* Add a settings link to the plugin entry in the plugins menu
-	**/ 
-	add_filter('plugin_action_links', 'tbz_voguepay_plugin_action_links', 10, 2);
+	* Add Settings link to the plugin entry in the plugins menu for WC below 2.1
+	**/
+	if ( version_compare( WOOCOMMERCE_VERSION, "2.1" ) <= 0 ) {
 
-	function tbz_voguepay_plugin_action_links($links, $file) {
-	    static $this_plugin;
+		add_filter('plugin_action_links', 'tbz_voguepay_plugin_action_links', 10, 2);
 
-	    if (!$this_plugin) {
-	        $this_plugin = plugin_basename(__FILE__);
-	    }
+		function tbz_voguepay_plugin_action_links($links, $file) {
+		    static $this_plugin;
 
-	    if ($file == $this_plugin) {
+		    if (!$this_plugin) {
+		        $this_plugin = plugin_basename(__FILE__);
+		    }
+
+		    if ($file == $this_plugin) {
 	        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=woocommerce_settings&tab=payment_gateways&section=WC_Tbz_Voguepay_Gateway">Settings</a>';
-	        array_unshift($links, $settings_link);
-	    }
-	    return $links;
+		        array_unshift($links, $settings_link);
+		    }
+		    return $links;
+		}
 	}
-} 
+	/**
+	* Add Settings link to the plugin entry in the plugins menu for WC 2.1 and above
+	**/
+	else{
+		add_filter('plugin_action_links', 'tbz_voguepay_plugin_action_links', 10, 2);
+
+		function tbz_voguepay_plugin_action_links($links, $file) {
+		    static $this_plugin;
+
+		    if (!$this_plugin) {
+		        $this_plugin = plugin_basename(__FILE__);
+		    }
+
+		    if ($file == $this_plugin) {
+		        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=wc_tbz_voguepay_gateway">Settings</a>';
+		        array_unshift($links, $settings_link);
+		    }
+		    return $links;
+		}
+	}
+}
